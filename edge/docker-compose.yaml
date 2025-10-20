@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  edge-haproxy:
+    image: haproxy:2.9
+    container_name: edge-haproxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ../pki:/etc/local-pki:ro
+    networks:
+      - wan
+    dns:
+      - 127.0.0.11
+
+networks:
+  wan:
+    external: true

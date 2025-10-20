@@ -1,0 +1,166 @@
+
+x-ispn-image: &ispn_image infinispan/server:15.0.10.Final
+x-kc-image: &kc_image quay.io/keycloak/keycloak:26.4.1
+x-pg-image: &pg_image postgres:16
+
+networks:
+  bud-ispn: { driver: bridge }
+  bud-kc: { driver: bridge }
+  wan: { external: true }
+
+volumes:
+  bud_pgdata: {} 
+  bud-ispn-data-1: {} 
+  bud-ispn-data-2: {} 
+  bud-ispn-data-3: {} 
+
+services:
+  bud-ispn-1:
+    image: *ispn_image
+    container_name: ispn-bud-1
+    environment:
+      USER: admin
+      PASS: password
+    networks:
+      - bud-ispn
+      - wan
+    command: -c infinispan-keycloak.xml -Dinfinispan.site.name=BUD -Djgroups.mcast_port=46656
+    ports:
+      - "11222:11222"
+    volumes:
+      - type: bind
+        source: ./ispn/infinispan-keycloak.xml
+        target: /opt/infinispan/server/conf/infinispan-keycloak.xml
+        read_only: true
+    healthcheck:
+      test: ["CMD", "bash", "-lc", "curl -fsS http://127.0.0.1:11222/rest/v2/cache-managers/default/health/status"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+
+  bud-ispn-2:
+    image: *ispn_image
+    container_name: ispn-bud-2
+    environment:
+      USER: admin
+      PASS: password
+    networks:
+      - bud-ispn
+      - wan
+    command: -c infinispan-keycloak.xml -Dinfinispan.site.name=BUD -Djgroups.mcast_port=46656
+    ports:
+      - "12222:11222"
+    volumes:
+      - type: bind
+        source: ./ispn/infinispan-keycloak.xml
+        target: /opt/infinispan/server/conf/infinispan-keycloak.xml
+        read_only: true
+    healthcheck:
+      test: ["CMD", "bash", "-lc", "curl -fsS http://127.0.0.1:11222/rest/v2/cache-managers/default/health/status"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+
+  bud-ispn-3:
+    image: *ispn_image
+    container_name: ispn-bud-3
+    environment:
+      USER: admin
+      PASS: password
+    networks:
+      - bud-ispn
+      - wan
+    command: -c infinispan-keycloak.xml -Dinfinispan.site.name=BUD -Djgroups.mcast_port=46656
+    ports:
+      - "13222:11222"
+    volumes:
+      - type: bind
+        source: ./ispn/infinispan-keycloak.xml
+        target: /opt/infinispan/server/conf/infinispan-keycloak.xml
+        read_only: true
+    healthcheck:
+      test: ["CMD", "bash", "-lc", "curl -fsS http://127.0.0.1:11222/rest/v2/cache-managers/default/health/status"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+
+  bud-pg:
+    image: *pg_image
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes: [ "bud_pgdata:/var/lib/postgresql/data" ]
+    networks: [ bud-kc ]
+
+  bud-kc-1:
+    image: *kc_image
+    command:
+      - start
+      - --features=multi-site
+      - --proxy-headers=xforwarded
+      - --hostname-strict=false
+      - --http-enabled=true
+      - --https-port=8443
+      - --https-certificate-file=/certs/edge.crt
+      - --https-certificate-key-file=/certs/edge.key
+    env_file: [ ./keycloak/kc.env ]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: bud-pg
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: password
+      KC_CACHE: ispn
+      KC_CACHE_REMOTE_HOST: bud-ispn-1
+      KC_CACHE_REMOTE_PORT: 11222
+      KC_CACHE_REMOTE_USERNAME: admin
+      KC_CACHE_REMOTE_PASSWORD: password
+      KC_CACHE_REMOTE_TLS_ENABLED: "false"
+      KC_SPI_CACHE_EMBEDDED_DEFAULT_SITE_NAME: "BUD"
+      KC_HOSTNAME: login.bp.localhost
+      KC_HTTP_PORT: 8080
+    volumes:
+      - ../../pki:/certs:ro
+    depends_on: [ bud-ispn-1, bud-ispn-2, bud-ispn-3, bud-pg ]
+    networks: [ bud-kc, bud-ispn, wan ]
+    ports:
+      - "8180:8080"
+
+  bud-kc-2:
+    image: *kc_image
+    command:
+      - start
+      - --features=multi-site
+      - --proxy-headers=xforwarded
+      - --hostname-strict=false
+      - --http-enabled=true
+      - --https-port=8443
+      - --https-certificate-file=/certs/edge.crt
+      - --https-certificate-key-file=/certs/edge.key
+    env_file: [ ./keycloak/kc.env ]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: bud-pg
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: password
+      KC_CACHE: ispn
+      KC_CACHE_REMOTE_HOST: bud-ispn-2
+      KC_CACHE_REMOTE_PORT: 11222
+      KC_CACHE_REMOTE_USERNAME: admin
+      KC_CACHE_REMOTE_PASSWORD: password
+      KC_CACHE_REMOTE_TLS_ENABLED: "false"
+      KC_SPI_CACHE_EMBEDDED_DEFAULT_SITE_NAME: "BUD"
+      KC_HOSTNAME: login.bp.localhost
+      KC_HTTP_PORT: 8080
+    volumes:
+      - ../../pki:/certs:ro
+    depends_on: [ bud-ispn-1, bud-ispn-2, bud-ispn-3, bud-pg ]
+    networks: [ bud-kc, bud-ispn, wan ]
+    ports:
+      - "8280:8080"
