@@ -6,8 +6,8 @@ ROOT_KEY := $(PKI_DIR)/root_ca.key
 LEAF_CRT := $(PKI_DIR)/edge.crt
 LEAF_KEY := $(PKI_DIR)/edge.key
 
-HOSTS_LOGIN := 127.0.0.1 login.bp.localhost login.vin.localhost login.london.localhost # kispn-demo
-HOSTS_CACHE := 127.0.0.1 admin.infini.bp.localhost admin.infini.vin.localhost admin.infini.lon.localhost # kispn-demo
+HOSTS_LOGIN := 127.0.0.1 login.bp.localhost login.vie.localhost login.lon.localhost
+HOSTS_CACHE := 127.0.0.1 admin.infini.bp.localhost admin.infini.vie.localhost admin.infini.lon.localhost
 
 .PHONY: help wan hosts-add hosts-remove pki-init trust-info up-bud up-vie up-lon up-edge up-all down-bud down-vie down-lon down-edge down-all logs
 
@@ -36,10 +36,10 @@ pki-init: $(PKI_DIR)
 		--profile leaf --no-password --insecure \
 		--ca /pki/root_ca.crt --ca-key /pki/root_ca.key \
 		--san login.bp.localhost \
-		--san login.vin.localhost \
-		--san login.london.localhost \
+		--san login.vie.localhost \
+		--san login.lon.localhost \
 		--san admin.infini.bp.localhost \
-		--san admin.infini.vin.localhost \
+		--san admin.infini.vie.localhost \
 		--san admin.infini.lon.localhost
 	@echo ">> Building HAProxy PEM (cert+key)..."
 	cat $(LEAF_CRT) $(LEAF_KEY) > $(EDGE_PEM)
@@ -98,5 +98,8 @@ down-edge:
 
 down-all: down-edge down-bud down-vie down-lon
 
-logs:
+logs/edge:
 	@cd edge && docker compose logs -f
+
+logs/kc:
+	@cd sites/budapest && docker compose logs -f
