@@ -1,0 +1,66 @@
+---
+services:
+  oidc-rp:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.12.0
+    command:
+      - --http-address=0.0.0.0:4080
+      - --https-address=0.0.0.0:4443
+      - --email-domain=*
+      # Logging / debug
+      - --standard-logging=true
+      - --request-logging=true
+      - --auth-logging=true
+      - --show-debug-on-error=true
+      - --silence-ping-logging=false
+      - --skip-claims-from-profile-url=true
+      - --oidc-email-claim=email
+      # headers
+      - --set-xauthrequest=true
+      - --pass-access-token=true
+      - --pass-authorization-header=true
+      - --pass-user-headers=true
+      - --prefer-email-to-user=true
+      - --pass-user-headers=true
+      - --skip-auth-strip-headers=false
+      # optionally set upstream to a whoami
+      - --upstream=http://whoami:80
+      # TLS settings
+      # - --tls-cert-file=/certs/edge.pem
+      # - --tls-key-file=/certs/edge.key
+      # - --cookie-secure=true
+    env_file:
+      - .env
+    environment:
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      OAUTH2_PROXY_PROVIDER: oidc
+      OAUTH2_PROXY_OIDC_ISSUER_URL: ${OIDC_ISSUER}
+      OAUTH2_PROXY_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: ${REDIRECT_URL}
+      OAUTH2_PROXY_COOKIE_SECRET: ${COOKIE_SECRET}
+      OAUTH2_PROXY_SCOPE: "openid email profile offline_access"
+      OAUTH2_PROXY_SSL_INSECURE_SKIP_VERIFY: "true"
+      OAUTH2_PROXY_SSL_UPSTREAM_INSECURE_SKIP_VERIFY: "true"
+    ports:
+      - "4080:4080"
+    volumes:
+      - ../pki:/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4080/ping | grep -q '^OK$'"]
+      interval: 10s
+      timeout: 2s
+      retries: 6
+      start_period: 30s
+    networks:
+      wan:
+        aliases:
+          - oidc-rp
+
+  whoami:
+    image: traefik/whoami
+    networks:
+      wan: {}
+
+networks:
+  wan:
+    external: true

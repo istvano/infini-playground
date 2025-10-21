@@ -1,4 +1,4 @@
-version: "3.9"
+---
 
 services:
   edge-haproxy:
@@ -12,9 +12,19 @@ services:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
       - ../pki:/etc/local-pki:ro
     networks:
-      - wan
+      wan:
+        aliases:
+          - login.bp.localhost
+          - login.lon.localhost
+          - login.vie.localhost
     dns:
       - 127.0.0.11
+    healthcheck:
+      test: ["CMD", "haproxy", "-c", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 networks:
   wan:

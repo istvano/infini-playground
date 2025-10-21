@@ -113,6 +113,11 @@ services:
       POSTGRES_PASSWORD: keycloak
     volumes: [ "lon_pgdata:/var/lib/postgresql/data" ]
     networks: [ lon-kc ]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   lon-kc-1:
     image: *kc_image
@@ -125,6 +130,7 @@ services:
       - --https-port=8443
       - --https-certificate-file=/certs/edge.crt
       - --https-certificate-key-file=/certs/edge.key
+      - --import-realm
     env_file: [ ./kc.env ]
     environment:
       KC_DB: postgres
@@ -145,10 +151,16 @@ services:
       KC_HTTP_PORT: 8080
     volumes:
       - ../../pki:/certs:ro
+      - ../../common/demo-realm.json:/opt/keycloak/data/import/demo-realm.json:ro
     depends_on: [ lon-ispn-1, lon-ispn-2, lon-ispn-3, lon-pg ]
     networks: [ lon-kc, lon-ispn, wan ]
     ports:
       - "9180:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000;echo -e 'GET /health/ready HTTP/1.1\r\nhost: http://localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   lon-kc-2:
     image: *kc_image
@@ -161,6 +173,7 @@ services:
       - --https-port=8443
       - --https-certificate-file=/certs/edge.crt
       - --https-certificate-key-file=/certs/edge.key
+      - --import-realm
     env_file: [ ./kc.env ]
     environment:
       KC_DB: postgres
@@ -181,7 +194,13 @@ services:
       KC_HTTP_PORT: 8080
     volumes:
       - ../../pki:/certs:ro
+      - ../../common/demo-realm.json:/opt/keycloak/data/import/demo-realm.json:ro
     depends_on: [ lon-ispn-1, lon-ispn-2, lon-ispn-3, lon-pg ]
     networks: [ lon-kc, lon-ispn, wan ]
     ports:
       - "9280:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000;echo -e 'GET /health/ready HTTP/1.1\r\nhost: http://localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
